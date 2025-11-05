@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LeeCoin Dashboard</title>
+  <link rel="icon" type="image/jpeg" href="https://tse1.mm.bing.net/th/id/OIP.PoFv4AxPJE5rAIT9PcRpQQAAAA?rs=1&pid=ImgDetMain&o=7&rm=3">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white min-h-screen">
+  <div class="max-w-4xl mx-auto p-8">
+    <h1 class="text-3xl font-bold text-orange-50 mb-4">Your LeeCoin Dashboard</h1>
+    <div id="status" class="mb-4 text-sm text-orange-100/70">Loading...</div>
+
+    <div id="dashboard" class="hidden">
+      <div class="mb-6 p-4 bg-stone-900/50 rounded border border-orange-900/20">
+        <h2 class="text-xl text-orange-50 mb-2">Balance</h2>
+        <div class="text-3xl text-orange-300" id="balance">0 LΞΞ</div>
+      </div>
+
+      <div class="mb-6 p-4 bg-stone-900/50 rounded border border-orange-900/20">
+        <h2 class="text-xl text-orange-50 mb-2">Recent Transfers</h2>
+        <div id="transfers-list" class="space-y-2 text-sm text-orange-100/70"></div>
+      </div>
+    </div>
+
+    <div id="error" class="hidden text-red-400"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const statusEl = document.getElementById('status');
+    const dash = document.getElementById('dashboard');
+    const err = document.getElementById('error');
+
+    if (!token) {
+      statusEl.textContent = 'Missing dashboard token. Check your email for the dashboard link.';
+      err.classList.remove('hidden');
+      err.textContent = 'Missing token';
+    } else {
+      fetch(`/api/dashboard?token=${encodeURIComponent(token)}`).then(r => r.json()).then(data => {
+        if (!data.ok) {
+          statusEl.textContent = 'Failed to load dashboard: ' + (data.error || 'unknown');
+          err.classList.remove('hidden');
+          err.textContent = data.error || 'Failed to load';
+          return;
+        }
+        statusEl.classList.add('hidden');
+        dash.classList.remove('hidden');
+        document.getElementById('balance').textContent = (data.balance || 0) + ' LΞΞ';
+        const list = document.getElementById('transfers-list');
+        list.innerHTML = '';
+        if (!data.transfers || data.transfers.length === 0) {
+          list.innerHTML = '<div class="text-sm text-orange-100/70">No transfers yet.</div>';
+        } else {
+          data.transfers.forEach(t => {
+            const d = document.createElement('div');
+            d.innerHTML = `ID: ${t.id} — From: ${t.from} To: ${t.to} — ${t.amount} LΞΞ — ${new Date(t.createdAt).toLocaleString()}`;
+            list.appendChild(d);
+          });
+        }
+      }).catch(e => {
+        statusEl.textContent = 'Failed to load dashboard.';
+        err.classList.remove('hidden');
+        err.textContent = e.message;
+      });
+    }
+  </script>
+</body>
+</html>

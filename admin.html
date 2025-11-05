@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin - LEE GLOBAL HOLDINGS</title>
+  <link rel="icon" type="image/jpeg" href="images/21355.jpg">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white min-h-screen">
+  <div class="max-w-5xl mx-auto p-8">
+    <h1 class="text-3xl font-bold text-orange-50 mb-4">Admin Console</h1>
+
+    <div id="auth-block" class="mb-6">
+      <p class="text-sm text-orange-100/70">Admin console is protected. If you are not signed in you will be redirected to the admin login page.</p>
+      <div class="mt-4">
+        <div id="signed-info" class="hidden">Signed in as <strong id="signed-email"></strong> <button id="logout-admin" class="ml-3 px-3 py-1 bg-stone-800/50 rounded">Sign out</button></div>
+        <div id="not-signed" class="">If you are the admin, <a href="admin-login.html" class="text-orange-300 underline">sign in here</a>.</div>
+      </div>
+    </div>
+
+    <div id="admin-area" class="hidden">
+      <div class="mb-6 p-4 bg-stone-900/50 rounded border border-orange-900/20">
+        <h2 class="text-xl text-orange-50 mb-2">Admin Balance</h2>
+        <div class="flex items-center space-x-4">
+          <div>Admin ID: <strong id="admin-id">LEE_ADMIN</strong></div>
+          <div>Balance: <strong id="admin-balance">0</strong> LΞΞ</div>
+          <button id="topup-admin" class="px-3 py-1 bg-orange-600 text-black rounded">Give 1,000,000,000 LΞΞ</button>
+        </div>
+      </div>
+
+      <div class="mb-6 p-4 bg-stone-900/50 rounded border border-orange-900/20">
+        <h2 class="text-xl text-orange-50 mb-2">Pending Submissions</h2>
+        <div id="submissions-list" class="space-y-3"></div>
+      </div>
+
+      <div class="mb-6 p-4 bg-stone-900/50 rounded border border-orange-900/20">
+        <h2 class="text-xl text-orange-50 mb-2">Balances (sample)</h2>
+        <div id="balances-list" class="text-sm"></div>
+      </div>
+
+      <div class="mb-6 p-4 bg-stone-900/50 rounded border border-orange-900/20">
+        <h2 class="text-xl text-orange-50 mb-2">Transfers</h2>
+        <div id="transfers-list" class="text-sm"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Simple client-side admin (INSECURE). For production use server-side authentication.
+    const ADMIN_KEY = 'LEE_ADMIN';
+    const SUBMISSIONS_KEY = 'mpesa_submissions';
+    const BALANCES_KEY = 'lee_balances';
+    const TRANSFERS_KEY = 'lee_transfers';
+
+    function ensureStorage() {
+      if (!localStorage.getItem(BALANCES_KEY)) localStorage.setItem(BALANCES_KEY, JSON.stringify({}));
+      if (!localStorage.getItem(TRANSFERS_KEY)) localStorage.setItem(TRANSFERS_KEY, JSON.stringify([]));
+      if (!localStorage.getItem(SUBMISSIONS_KEY)) localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify([]));
+    }
+
+    ensureStorage();
+
+    const logoutBtn = document.getElementById('logout-admin');
+    const adminArea = document.getElementById('admin-area');
+    const adminBalanceEl = document.getElementById('admin-balance');
+    const submissionsList = document.getElementById('submissions-list');
+    const balancesList = document.getElementById('balances-list');
+    const transfersList = document.getElementById('transfers-list');
+    const topupBtn = document.getElementById('topup-admin');
+
+    // Auth: token set by admin-login.html
+    function getToken() {
+      return sessionStorage.getItem('lee_admin_token') || localStorage.getItem('lee_admin_token');
+    }
+    function isSignedIn() {
+      return !!getToken();
+    }
+
+    function renderAdmin() {
+      if (!isSignedIn()) {
+        adminArea.classList.add('hidden');
+        return;
+      }
+      adminArea.classList.remove('hidden');
+      // fetch data from server
+      const token = getToken();
+      Promise.all([
+        fetch('/api/admin/submissions', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+        fetch('/api/admin/balances', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+        fetch('/api/admin/transfers', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json())
+      ]).then(([subsResp, balancesResp, transfersResp]) => {
+        const submissions = subsResp.submissions || [];
+        const balances = (balancesResp && balancesResp.balances) || {};
+        const transfers = (transfersResp && transfersResp.transfers) || [];
+
+        // admin balance
+        balances[ADMIN_KEY] = balances[ADMIN_KEY] || 0;
+        adminBalanceEl.textContent = balances[ADMIN_KEY];
+
+        // render submissions pending
+        submissionsList.innerHTML = '';
+        const pending = submissions.filter(s => s.status === 'pending');
+        if (pending.length === 0) {
+          submissionsList.innerHTML = '<div class="text-sm text-orange-100/70">No pending submissions.</div>';
+        } else {
+          pending.forEach(s => {
+            const el = document.createElement('div');
+            el.className = 'p-3 bg-black/30 rounded flex justify-between items-start';
+            el.innerHTML = `
+              <div>
+                <div><strong>${escapeHtml(s.name || 'Unknown')}</strong> — ${escapeHtml(s.phone || '')}</div>
+                <div class="text-sm text-orange-100/70">Amount: ${s.usd} USD (${s.lee} LΞΞ)</div>
+                <div class="text-sm text-orange-100/70">TX: ${escapeHtml(s.txRef || '')}</div>
+                <div class="text-sm mt-2">Submitted: ${new Date(s.createdAt).toLocaleString()}</div>
+              </div>
+              <div class="flex flex-col space-y-2 ml-4">
+                <button class="verify-btn px-3 py-1 bg-green-600 text-black rounded" data-id="${s.id}">Verify & Transfer</button>
+                <button class="reject-btn px-3 py-1 bg-stone-800/50 rounded" data-id="${s.id}">Reject</button>
+              </div>
+            `;
+            submissionsList.appendChild(el);
+          });
+        }
+
+        // balances
+        balancesList.innerHTML = '';
+        Object.keys(balances).forEach(k => {
+          const div = document.createElement('div');
+          div.textContent = `${k}: ${balances[k]} LΞΞ`;
+          balancesList.appendChild(div);
+        });
+
+        // transfers
+        transfersList.innerHTML = '';
+        if (transfers.length === 0) transfersList.innerHTML = '<div class="text-sm text-orange-100/70">No transfers yet.</div>';
+        transfers.slice().reverse().forEach(t => {
+          const d = document.createElement('div');
+          d.className = 'mb-2';
+          d.innerHTML = `ID: ${t.id} — From: ${t.from} To: ${t.to} — ${t.amount} LΞΞ — ${new Date(t.createdAt).toLocaleString()}`;
+          transfersList.appendChild(d);
+        });
+
+        // attach handlers
+        document.querySelectorAll('.verify-btn').forEach(b => b.addEventListener('click', onVerify));
+        document.querySelectorAll('.reject-btn').forEach(b => b.addEventListener('click', onReject));
+      }).catch(err => {
+        console.error(err);
+        alert('Failed to load admin data. Maybe your session expired.');
+        sessionStorage.removeItem('lee_admin_token');
+        window.location.href = 'admin-login.html';
+      });
+    }
+
+    function onVerify(e) {
+      const id = e.currentTarget.dataset.id;
+      const token = getToken();
+      fetch('/api/admin/verify', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ id }) })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.ok) return alert(data.error || 'Verify failed');
+          alert(`Verified and transferred ${data.transfer.amount} LΞΞ to ${data.transfer.to}.`);
+          renderAdmin();
+        }).catch(err => { alert('Verify failed: ' + err.message); });
+    }
+
+    function onReject(e) {
+      const id = e.currentTarget.dataset.id;
+      const token = getToken();
+      fetch('/api/admin/reject', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ id }) })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.ok) return alert(data.error || 'Reject failed');
+          alert('Submission rejected.');
+          renderAdmin();
+        }).catch(err => { alert('Reject failed: ' + err.message); });
+    }
+
+    // logout
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        sessionStorage.removeItem('lee_admin_auth');
+        sessionStorage.removeItem('lee_admin_email');
+        sessionStorage.removeItem('lee_admin_token');
+        localStorage.removeItem('lee_admin_auth');
+        localStorage.removeItem('lee_admin_email');
+        localStorage.removeItem('lee_admin_token');
+        window.location.href = 'admin-login.html';
+      });
+    }
+
+    topupBtn.addEventListener('click', () => {
+      const balances = JSON.parse(localStorage.getItem(BALANCES_KEY) || '{}');
+      balances[ADMIN_KEY] = (balances[ADMIN_KEY] || 0) + 1000000000;
+      localStorage.setItem(BALANCES_KEY, JSON.stringify(balances));
+      renderAdmin();
+    });
+
+    // initialize - if not signed in, redirect to login page
+    if (!isSignedIn()) {
+      window.location.href = 'admin-login.html';
+    } else {
+      // show signed email in header
+      const email = sessionStorage.getItem('lee_admin_email');
+      const signedInfo = document.getElementById('signed-info');
+      const signedEmail = document.getElementById('signed-email');
+      const notSigned = document.getElementById('not-signed');
+      if (signedInfo && signedEmail) {
+        signedEmail.textContent = email;
+        signedInfo.classList.remove('hidden');
+      }
+      if (notSigned) notSigned.classList.add('hidden');
+      renderAdmin();
+    }
+
+    // small helper
+    function escapeHtml(unsafe) {
+      return (unsafe || '').toString().replace(/[&<"'`=\/]/g, function (s) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'})[s];
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Login - LEE GLOBAL HOLDINGS</title>
+  <link rel="icon" type="image/jpeg" href="images/21355.jpg">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white min-h-screen">
+  <div class="max-w-md mx-auto p-8">
+    <h1 class="text-2xl font-bold text-orange-50 mb-4">Admin Login</h1>
+    <p class="text-sm text-orange-100/70 mb-4">Enter your admin credentials to continue. This login is client-side only for now.</p>
+
+  <form id="login-form" class="space-y-4 p-6 bg-stone-900/50 rounded border border-orange-900/20">
+      <div>
+        <label class="block text-sm text-orange-100/70">Email</label>
+        <input id="email" required class="w-full mt-1 p-2 bg-black/20 border border-orange-900/20 rounded" placeholder="admin email">
+      </div>
+      <div>
+        <label class="block text-sm text-orange-100/70">Password</label>
+        <input id="password" type="password" required class="w-full mt-1 p-2 bg-black/20 border border-orange-900/20 rounded" placeholder="password">
+      </div>
+      <div class="flex items-center space-x-3">
+        <button type="submit" class="px-4 py-2 bg-green-600 text-black rounded">Sign in</button>
+        <a href="index.html" class="ml-2 px-3 py-2 bg-stone-800/50 rounded border">Back to site</a>
+        <label class="ml-4 text-sm text-orange-100/70"><input id="keep-me" type="checkbox" class="mr-2">Keep me logged in</label>
+      </div>
+      <div>
+        <button id="quick-leemesse" type="button" class="mt-2 px-3 py-2 bg-orange-600 text-black rounded">Sign in as leemesse</button>
+      </div>
+      <div id="login-error" class="text-sm text-red-400 hidden mt-2"></div>
+    </form>
+
+    <p class="mt-6 text-sm text-orange-100/60">Note: For production, use a secure server-side authentication system. This client-side login stores an ephemeral session in sessionStorage.</p>
+  </div>
+
+  <script>
+    // Allowed credentials (as requested). These are checked client-side only.
+    const ALLOWED_EMAIL = 'leemessi632gmail.com';
+    const ALLOWED_PASSWORD = 'leemessi2005';
+
+    const form = document.getElementById('login-form');
+    const err = document.getElementById('login-error');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const resp = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Login failed');
+        // store token (respect "Keep me logged in")
+        const keep = document.getElementById('keep-me').checked;
+        if (keep) {
+          localStorage.setItem('lee_admin_token', data.token);
+          localStorage.setItem('lee_admin_email', data.email);
+          localStorage.setItem('lee_admin_auth', '1');
+        } else {
+          sessionStorage.setItem('lee_admin_token', data.token);
+          sessionStorage.setItem('lee_admin_email', data.email);
+          sessionStorage.setItem('lee_admin_auth', '1');
+        }
+        window.location.href = 'admin.html';
+      } catch (err) {
+        err.textContent = err.message || 'Login failed';
+        err.classList.remove('hidden');
+      }
+    });
+
+    // Quick sign-in button for leemesse
+    document.getElementById('quick-leemesse').addEventListener('click', () => {
+      document.getElementById('email').value = 'leemesse';
+      document.getElementById('password').value = 'leemessi2005';
+      // check keep-me by default for quick sign-in
+      document.getElementById('keep-me').checked = true;
+      document.getElementById('login-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    });
+
+    // Support autologin via URL flag ?autologin=1
+    if (new URLSearchParams(window.location.search).get('autologin') === '1') {
+      document.getElementById('quick-leemesse').click();
+    }
+  </script>
+</body>
+</html>

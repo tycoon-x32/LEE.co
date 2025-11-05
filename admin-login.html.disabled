@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Login - LEE GLOBAL HOLDINGS (backup)</title>
+  <link rel="icon" type="image/jpeg" href="https://tse1.mm.bing.net/th/id/OIP.PoFv4AxPJE5rAIT9PcRpQQAAAA?rs=1&pid=ImgDetMain&o=7&rm=3">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white min-h-screen">
+  <div class="max-w-md mx-auto p-8">
+    <h1 class="text-2xl font-bold text-orange-50 mb-4">Admin Login (backup)</h1>
+    <p class="text-sm text-orange-100/70 mb-4">This is a backup of the admin login page. Admin login has been disabled.</p>
+  </div>
+</body>
+</html>

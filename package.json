@@ -1,0 +1,17 @@
+{
+  "name": "leecoin-backend",
+  "version": "1.0.0",
+  "description": "Simple Node.js backend for LeeCoin admin and M-Pesa confirmations (demo)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "fs-extra": "^11.1.1",
+    "jsonwebtoken": "^9.0.0",
+    "nodemailer": "^7.0.10"
+  }
+}
